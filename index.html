@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>FCC Crystal Viewer — Solid State</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0d10;
+    --surface: #16161a;
+    --surface2: #1e1e24;
+    --border: rgba(255,255,255,0.07);
+    --text: #e8e8f0;
+    --muted: #7a7a90;
+    --accent: #5b8dee;
+    --accent2: #e06b6b;
+    --green: #5ecf8a;
+    --amber: #f0b040;
+    --font: 'Inter', system-ui, sans-serif;
+    --mono: 'JetBrains Mono', 'Fira Mono', monospace;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    grid-template-rows: 52px 1fr;
+    height: 100vh;
+    overflow: hidden;
+  }
+
+  /* ── topbar ── */
+  header {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 0 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+  }
+  .logo { font-size: 15px; font-weight: 600; letter-spacing: -0.02em; color: var(--text); }
+  .logo span { color: var(--accent); }
+  .header-badge {
+    font-size: 11px; padding: 3px 8px; border-radius: 20px;
+    background: rgba(91,141,238,0.12); color: var(--accent);
+    border: 1px solid rgba(91,141,238,0.25);
+  }
+  .header-controls { margin-left: auto; display: flex; gap: 8px; }
+  .hbtn {
+    font-size: 12px; padding: 5px 12px; border-radius: 6px;
+    border: 1px solid var(--border); background: transparent;
+    color: var(--muted); cursor: pointer; font-family: var(--font);
+    transition: all 0.15s;
+  }
+  .hbtn:hover { color: var(--text); border-color: rgba(255,255,255,0.15); background: var(--surface2); }
+  .hbtn.active { color: var(--accent); border-color: rgba(91,141,238,0.4); background: rgba(91,141,238,0.08); }
+
+  /* ── sidebar ── */
+  aside {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    overflow-y: auto;
+    padding: 16px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .section-label {
+    font-size: 10px; font-weight: 600; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--muted);
+    padding: 0 16px 8px;
+  }
+  .mode-btn {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 16px; font-size: 13px;
+    color: var(--muted); cursor: pointer;
+    border-left: 2px solid transparent;
+    transition: all 0.12s;
+    user-select: none;
+  }
+  .mode-btn:hover { color: var(--text); background: var(--surface2); }
+  .mode-btn.active { color: var(--accent); border-left-color: var(--accent); background: rgba(91,141,238,0.06); }
+  .mode-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  .divider { height: 1px; background: var(--border); margin: 12px 16px; }
+
+  /* stats panel */
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 0 16px 8px; }
+  .stat-card {
+    background: var(--surface2); border-radius: 8px;
+    padding: 10px 12px; border: 1px solid var(--border);
+  }
+  .stat-label { font-size: 10px; color: var(--muted); margin-bottom: 4px; }
+  .stat-val { font-size: 18px; font-weight: 600; color: var(--text); font-family: var(--mono); }
+  .stat-sub { font-size: 10px; color: var(--muted); margin-top: 2px; }
+
+  /* formula box */
+  .formula-box {
+    margin: 0 16px 12px;
+    background: var(--surface2);
+    border-radius: 8px;
+    padding: 12px;
+    border: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.8;
+  }
+  .formula-box .hi { color: var(--accent); }
+  .formula-box .hi2 { color: var(--green); }
+
+  /* toggle switches */
+  .toggle-row {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 16px; font-size: 12px; color: var(--muted);
+  }
+  .toggle {
+    width: 32px; height: 18px; border-radius: 9px;
+    background: var(--surface2); border: 1px solid var(--border);
+    position: relative; cursor: pointer; transition: background 0.2s;
+  }
+  .toggle.on { background: var(--accent); border-color: var(--accent); }
+  .toggle::after {
+    content: ''; position: absolute; width: 12px; height: 12px;
+    border-radius: 50%; background: #fff; top: 2px; left: 2px;
+    transition: transform 0.2s;
+  }
+  .toggle.on::after { transform: translateX(14px); }
+
+  /* ── canvas area ── */
+  main {
+    position: relative;
+    background: var(--bg);
+    overflow: hidden;
+  }
+  #canvas { display: block; width: 100%; height: 100%; }
+
+  /* info overlay */
+  .overlay-label {
+    position: absolute; top: 16px; left: 16px;
+    font-size: 11px; color: var(--muted);
+    background: rgba(13,13,16,0.8);
+    padding: 6px 10px; border-radius: 6px;
+    border: 1px solid var(--border);
+    backdrop-filter: blur(4px);
+    line-height: 1.6;
+  }
+  .overlay-label b { color: var(--text); font-weight: 500; }
+
+  .hint {
+    position: absolute; bottom: 16px; left: 50%; transform: translateX(-50%);
+    font-size: 11px; color: var(--muted);
+    background: rgba(13,13,16,0.7);
+    padding: 5px 14px; border-radius: 20px;
+    border: 1px solid var(--border);
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Crystal<span>Lab</span></div>
+  <span class="header-badge">JEE Solid State</span>
+  <div class="header-controls">
+    <button class="hbtn active" onclick="setStructure('fcc')">FCC</button>
+    <button class="hbtn" onclick="setStructure('bcc')">BCC</button>
+    <button class="hbtn" onclick="setStructure('sc')">SC</button>
+    <button class="hbtn" onclick="setStructure('hcp')">HCP</button>
+  </div>
+</header>
+
+<aside>
+  <div class="section-label">View mode</div>
+  <div class="mode-btn active" onclick="setMode('unit')" id="m-unit">
+    <div class="mode-dot" style="background:#5b8dee"></div>Unit cell
+  </div>
+  <div class="mode-btn" onclick="setMode('extended')" id="m-extended">
+    <div class="mode-dot" style="background:#5ecf8a"></div>Extended (2×2×2)
+  </div>
+  <div class="mode-btn" onclick="setMode('cn')" id="m-cn">
+    <div class="mode-dot" style="background:#e06b6b"></div>CN highlight
+  </div>
+  <div class="mode-btn" onclick="setMode('void')" id="m-void">
+    <div class="mode-dot" style="background:#f0b040"></div>Voids
+  </div>
+
+  <div class="divider"></div>
+  <div class="section-label">Crystal data</div>
+
+  <div class="stat-grid" id="stats">
+    <div class="stat-card">
+      <div class="stat-label">Atoms / cell</div>
+      <div class="stat-val" id="s-atoms">4</div>
+      <div class="stat-sub">8×⅛ + 6×½</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Coord. no.</div>
+      <div class="stat-val" id="s-cn">12</div>
+      <div class="stat-sub">nearest neighbours</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Packing eff.</div>
+      <div class="stat-val" id="s-pe">74%</div>
+      <div class="stat-sub">π / (3√2)</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Void %</div>
+      <div class="stat-val" id="s-void">26%</div>
+      <div class="stat-sub">1 − packing</div>
+    </div>
+  </div>
+
+  <div class="formula-box" id="formula">
+    r = <span class="hi">a√2 / 4</span><br>
+    Oct voids: <span class="hi2">4</span> per cell<br>
+    Tet voids: <span class="hi2">8</span> per cell<br>
+    r<sub>oct</sub> = <span class="hi">0.414r</span><br>
+    r<sub>tet</sub> = <span class="hi">0.225r</span>
+  </div>
+
+  <div class="divider"></div>
+  <div class="section-label">Display</div>
+  <div class="toggle-row">
+    Bonds<div class="toggle on" id="t-bonds" onclick="toggleOpt('bonds')"></div>
+  </div>
+  <div class="toggle-row">
+    Unit cell frame<div class="toggle on" id="t-frame" onclick="toggleOpt('frame')"></div>
+  </div>
+  <div class="toggle-row">
+    Atom labels<div class="toggle" id="t-labels" onclick="toggleOpt('labels')"></div>
+  </div>
+  <div class="toggle-row">
+    Auto-rotate<div class="toggle on" id="t-rotate" onclick="toggleOpt('rotate')"></div>
+  </div>
+</aside>
+
+<main>
+  <canvas id="canvas"></canvas>
+  <div class="overlay-label" id="overlay">
+    <b>FCC — Face-Centred Cubic</b><br>
+    CN = 12 · Packing = 74%
+  </div>
+  <div class="hint">Drag to rotate &nbsp;·&nbsp; Scroll to zoom &nbsp;·&nbsp; Right-drag to pan</div>
+</main>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+// ── scene setup ──
+const canvas = document.getElementById('canvas');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setPixelRatio(devicePixelRatio);
+renderer.shadowMap.enabled = true;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x0d0d10);
+
+const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 100);
+camera.position.set(4, 3, 5);
+camera.lookAt(0, 0, 0);
+
+// lights
+const ambient = new THREE.AmbientLight(0xffffff, 0.4);
+scene.add(ambient);
+const dirLight = new THREE.DirectionalLight(0xffffff, 0.9);
+dirLight.position.set(5, 8, 6);
+dirLight.castShadow = true;
+scene.add(dirLight);
+const fillLight = new THREE.DirectionalLight(0x8ab4f8, 0.3);
+fillLight.position.set(-5, -2, -4);
+scene.add(fillLight);
+
+// ── orbit controls (manual implementation) ──
+let isDragging = false, isRightDrag = false;
+let prevMouse = { x: 0, y: 0 };
+let spherical = { theta: Math.PI / 4, phi: Math.PI / 3, r: 6.5 };
+let panOffset = new THREE.Vector3();
+let autoRotate = true;
+
+canvas.addEventListener('mousedown', e => {
+  isDragging = true;
+  isRightDrag = e.button === 2;
+  prevMouse = { x: e.clientX, y: e.clientY };
+});
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+window.addEventListener('mouseup', () => isDragging = false);
+window.addEventListener('mousemove', e => {
+  if (!isDragging) return;
+  const dx = (e.clientX - prevMouse.x) * 0.008;
+  const dy = (e.clientY - prevMouse.y) * 0.008;
+  if (isRightDrag) {
+    const right = new THREE.Vector3();
+    const up = new THREE.Vector3();
+    camera.getWorldDirection(new THREE.Vector3());
+    right.crossVectors(camera.getWorldDirection(new THREE.Vector3()), camera.up).normalize();
+    up.copy(camera.up).normalize();
+    panOffset.addScaledVector(right, -dx * spherical.r * 0.5);
+    panOffset.addScaledVector(up, dy * spherical.r * 0.5);
+  } else {
+    spherical.theta -= dx;
+    spherical.phi = Math.max(0.1, Math.min(Math.PI - 0.1, spherical.phi - dy));
+    autoRotate = false;
+    document.getElementById('t-rotate').classList.remove('on');
+  }
+  prevMouse = { x: e.clientX, y: e.clientY };
+});
+canvas.addEventListener('wheel', e => {
+  spherical.r = Math.max(2, Math.min(20, spherical.r + e.deltaY * 0.01));
+});
+
+// touch
+let prevTouch = null;
+canvas.addEventListener('touchstart', e => { prevTouch = e.touches[0]; });
+canvas.addEventListener('touchmove', e => {
+  if (!prevTouch) return;
+  e.preventDefault();
+  const t = e.touches[0];
+  spherical.theta -= (t.clientX - prevTouch.clientX) * 0.01;
+  spherical.phi = Math.max(0.1, Math.min(Math.PI-0.1, spherical.phi - (t.clientY - prevTouch.clientY) * 0.01));
+  prevTouch = t;
+  autoRotate = false;
+}, { passive: false });
+
+function updateCamera() {
+  const target = panOffset.clone();
+  camera.position.set(
+    target.x + spherical.r * Math.sin(spherical.phi) * Math.sin(spherical.theta),
+    target.y + spherical.r * Math.cos(spherical.phi),
+    target.z + spherical.r * Math.sin(spherical.phi) * Math.cos(spherical.theta)
+  );
+  camera.lookAt(target);
+}
+
+// ── materials ──
+const MAT = {
+  corner:   new THREE.MeshStandardMaterial({ color: 0x5b8dee, roughness: 0.2, metalness: 0.6 }),
+  face:     new THREE.MeshStandardMaterial({ color: 0xe06b6b, roughness: 0.2, metalness: 0.5 }),
+  body:     new THREE.MeshStandardMaterial({ color: 0xf0b040, roughness: 0.2, metalness: 0.5 }),
+  cn:       new THREE.MeshStandardMaterial({ color: 0x5ecf8a, roughness: 0.15, metalness: 0.4, transparent: true, opacity: 0.9 }),
+  ghost:    new THREE.MeshStandardMaterial({ color: 0x5b8dee, roughness: 0.3, metalness: 0.3, transparent: true, opacity: 0.18 }),
+  ghostRed: new THREE.MeshStandardMaterial({ color: 0xe06b6b, roughness: 0.3, metalness: 0.3, transparent: true, opacity: 0.18 }),
+  octVoid:  new THREE.MeshStandardMaterial({ color: 0xf0b040, roughness: 0.3, transparent: true, opacity: 0.85, wireframe: false }),
+  tetVoid:  new THREE.MeshStandardMaterial({ color: 0xa78dff, roughness: 0.3, transparent: true, opacity: 0.85 }),
+  bond:     new THREE.MeshStandardMaterial({ color: 0x3a3a4a, roughness: 0.8 }),
+  frame:    new THREE.LineBasicMaterial({ color: 0x3a3a60, linewidth: 1 }),
+};
+
+const GEO_SPHERE_HI = new THREE.SphereGeometry(1, 32, 32);
+const GEO_SPHERE_SM = new THREE.SphereGeometry(1, 16, 16);
+
+function makeSphere(r, mat, pos, castShadow=true) {
+  const m = new THREE.Mesh(GEO_SPHERE_HI, mat);
+  m.scale.setScalar(r);
+  m.position.set(...pos);
+  m.castShadow = castShadow;
+  return m;
+}
+
+function makeBond(p1, p2, radius=0.04) {
+  const dir = new THREE.Vector3(...p2).sub(new THREE.Vector3(...p1));
+  const len = dir.length();
+  const mid = new THREE.Vector3(...p1).addScaledVector(dir.normalize(), len/2);
+  const geo = new THREE.CylinderGeometry(radius, radius, len, 8);
+  const m = new THREE.Mesh(geo, MAT.bond);
+  m.position.copy(mid);
+  m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0), dir);
+  return m;
+}
+
+function makeCellFrame(size=1) {
+  const s = size;
+  const pts = [
+    [0,0,0],[s,0,0], [s,0,0],[s,s,0], [s,s,0],[0,s,0], [0,s,0],[0,0,0],
+    [0,0,s],[s,0,s], [s,0,s],[s,s,s], [s,s,s],[0,s,s], [0,s,s],[0,0,s],
+    [0,0,0],[0,0,s], [s,0,0],[s,0,s], [s,s,0],[s,s,s], [0,s,0],[0,s,s],
+  ];
+  const verts = [];
+  pts.forEach(p => verts.push(...p));
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+  return new THREE.LineSegments(geo, MAT.frame);
+}
+
+// ── structure definitions ──
+const a = 1; // lattice param
+
+const STRUCTURES = {
+  fcc: {
+    name: 'FCC — Face-Centred Cubic', cn: 12, pe: '74%', atoms: '4',
+    atomSub: '8×⅛ + 6×½', voidPct: '26%',
+    formula: 'r = <span class="hi">a√2 / 4</span><br>Oct voids: <span class="hi2">4</span> per cell<br>Tet voids: <span class="hi2">8</span> per cell<br>r<sub>oct</sub> = <span class="hi">0.414r</span><br>r<sub>tet</sub> = <span class="hi">0.225r</span>',
+    corners: [[0,0,0],[a,0,0],[0,a,0],[a,a,0],[0,0,a],[a,0,a],[0,a,a],[a,a,a]],
+    faces:   [[a/2,a/2,0],[a/2,0,a/2],[0,a/2,a/2],[a/2,a/2,a],[a/2,a,a/2],[a,a/2,a/2]],
+    bodies:  [],
+    octVoids: [[a/2,a/2,a/2], [0,0,a/2],[a/2,0,0],[0,a/2,0],[a,a/2,a],[a/2,a,a],[a/2,a/2,0]].slice(0,4),
+    tetVoids: [[a/4,a/4,a/4],[3*a/4,a/4,a/4],[a/4,3*a/4,a/4],[3*a/4,3*a/4,a/4],
+               [a/4,a/4,3*a/4],[3*a/4,a/4,3*a/4],[a/4,3*a/4,3*a/4],[3*a/4,3*a/4,3*a/4]],
+    cnCenter: [a/2,a/2,0],
+    cnNeighbors: [[a/2,0,a/2],[a,a/2,a/2],[a/2,a,a/2],[0,a/2,a/2],
+                  [a/2,0,-a/2],[a,-a/2+a/2+a/2,a/2],
+                  [a,a/2,a/2],[0,a/2,a/2],
+                  [a/2,a/2,a],[a/2,a/2,-a/2],
+                  [a,a/2,a/2+a/2],[0,a/2,a/2+a/2]].slice(0,12),
+    rCorner: 0.22, rFace: 0.22,
+  },
+  bcc: {
+    name: 'BCC — Body-Centred Cubic', cn: 8, pe: '68%', atoms: '2',
+    atomSub: '8×⅛ + 1', voidPct: '32%',
+    formula: 'r = <span class="hi">a√3 / 4</span><br>Oct voids: <span class="hi2">6</span> per cell<br>Tet voids: <span class="hi2">12</span> per cell<br>r<sub>oct</sub> = <span class="hi">0.155r</span><br>r<sub>tet</sub> = <span class="hi">0.291r</span>',
+    corners: [[0,0,0],[a,0,0],[0,a,0],[a,a,0],[0,0,a],[a,0,a],[0,a,a],[a,a,a]],
+    faces: [],
+    bodies: [[a/2,a/2,a/2]],
+    octVoids: [[a/2,0,0],[a,a/2,0],[a/2,a,0],[0,a/2,0],[a/2,a/2,a],[a/2,a/2,-a]].slice(0,3),
+    tetVoids: [[a/4,a/2,0],[3*a/4,a/2,0],[a/2,a/4,0],[a/2,3*a/4,0]],
+    cnCenter: [a/2,a/2,a/2],
+    cnNeighbors: [[0,0,0],[a,0,0],[0,a,0],[a,a,0],[0,0,a],[a,0,a],[0,a,a],[a,a,a]],
+    rCorner: 0.24, rFace: 0.24,
+  },
+  sc: {
+    name: 'SC — Simple Cubic', cn: 6, pe: '52%', atoms: '1',
+    atomSub: '8 × ⅛', voidPct: '48%',
+    formula: 'r = <span class="hi">a / 2</span><br>Oct voids: <span class="hi2">1</span> per cell<br>r<sub>oct</sub> = <span class="hi">0.414r</span>',
+    corners: [[0,0,0],[a,0,0],[0,a,0],[a,a,0],[0,0,a],[a,0,a],[0,a,a],[a,a,a]],
+    faces: [], bodies: [],
+    octVoids: [[a/2,a/2,a/2]],
+    tetVoids: [],
+    cnCenter: [0,0,0],
+    cnNeighbors: [[a,0,0],[-a,0,0],[0,a,0],[0,-a,0],[0,0,a],[0,0,-a]],
+    rCorner: 0.35, rFace: 0.35,
+  },
+  hcp: {
+    name: 'HCP — Hexagonal Close-Packed', cn: 12, pe: '74%', atoms: '2',
+    atomSub: 'base layers + interior', voidPct: '26%',
+    formula: 'c/a = <span class="hi">√(8/3) ≈ 1.633</span><br>Oct voids: <span class="hi2">2</span> per cell<br>Tet voids: <span class="hi2">4</span> per cell',
+    corners: [], faces: [], bodies: [], octVoids: [], tetVoids: [],
+    cnCenter: null, cnNeighbors: [],
+    rCorner: 0.28, rFace: 0.28,
+    isHCP: true,
+  }
+};
+
+// ── scene group ──
+let sceneGroup = new THREE.Group();
+scene.add(sceneGroup);
+
+let currentStructure = 'fcc';
+let currentMode = 'unit';
+let opts = { bonds: true, frame: true, labels: false, rotate: true };
+
+function clearGroup() {
+  while(sceneGroup.children.length) sceneGroup.remove(sceneGroup.children[0]);
+}
+
+function buildHCP(mode) {
+  const r = 0.28;
+  const hex = [];
+  // bottom layer hexagon ring + center
+  const angles = Array.from({length:6}, (_,i) => i * Math.PI/3);
+  angles.forEach(a => hex.push([Math.cos(a), 0, Math.sin(a)]));
+  hex.push([0,0,0]);
+  // top layer
+  const top = hex.map(([x,y,z]) => [x, Math.sqrt(8/3), z]);
+  // middle layer (2 atoms, in voids of bottom hex)
+  const mid = [[Math.cos(Math.PI/6), Math.sqrt(8/3)/2, Math.sin(Math.PI/6)],
+               [Math.cos(Math.PI/6+Math.PI), Math.sqrt(8/3)/2, Math.sin(Math.PI/6+Math.PI)]];
+
+  const allAtoms = [...hex, ...top, ...mid];
+  allAtoms.forEach(([x,y,z]) => {
+    const isMid = mid.some(m => Math.abs(m[0]-x)<0.01 && Math.abs(m[1]-y)<0.01);
+    const mat = isMid ? MAT.face : MAT.corner;
+    sceneGroup.add(makeSphere(r, mat, [x,y,z]));
+  });
+
+  // hex frame
+  if (opts.frame) {
+    const frameVerts = [];
+    angles.forEach((a,i) => {
+      const j = (i+1)%6;
+      frameVerts.push(Math.cos(a),0,Math.sin(a), Math.cos(angles[j]),0,Math.sin(angles[j]));
+      frameVerts.push(Math.cos(a),Math.sqrt(8/3),Math.sin(a), Math.cos(angles[j]),Math.sqrt(8/3),Math.sin(angles[j]));
+      frameVerts.push(Math.cos(a),0,Math.sin(a), Math.cos(a),Math.sqrt(8/3),Math.sin(a));
+    });
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(frameVerts, 3));
+    sceneGroup.add(new THREE.LineSegments(geo, MAT.frame));
+  }
+
+  // center
+  const center = new THREE.Vector3(0, Math.sqrt(8/3)/2, 0);
+  sceneGroup.position.copy(center.clone().negate());
+}
+
+function buildScene(structKey, mode) {
+  clearGroup();
+  const S = STRUCTURES[structKey];
+  const offset = new THREE.Vector3(-a/2, -a/2, -a/2);
+
+  if (S.isHCP) { buildHCP(mode); return; }
+
+  const rC = S.rCorner, rF = S.rFace;
+
+  if (mode === 'extended') {
+    // 2x2x2 supercell
+    for (let ix=0; ix<2; ix++) for (let iy=0; iy<2; iy++) for (let iz=0; iz<2; iz++) {
+      const off = new THREE.Vector3(ix*a, iy*a, iz*a);
+      S.corners.forEach(p => {
+        const sp = makeSphere(rC * 0.9, MAT.corner, [p[0]+off.x,p[1]+off.y,p[2]+off.z]);
+        sceneGroup.add(sp);
+      });
+      S.faces.forEach(p => {
+        sceneGroup.add(makeSphere(rF * 0.9, MAT.face, [p[0]+off.x,p[1]+off.y,p[2]+off.z]));
+      });
+      S.bodies.forEach(p => {
+        sceneGroup.add(makeSphere(rF * 0.9, MAT.body, [p[0]+off.x,p[1]+off.y,p[2]+off.z]));
+      });
+      if (opts.frame) {
+        const f = makeCellFrame(a);
+        f.position.set(off.x, off.y, off.z);
+        sceneGroup.add(f);
+      }
+    }
+    sceneGroup.position.set(-a, -a, -a);
+    return;
+  }
+
+  if (mode === 'cn') {
+    // show one central atom + 12 neighbours highlighted
+    const center = S.cnCenter;
+    if (!center) { buildScene(structKey, 'unit'); return; }
+    // ghost full cell
+    S.corners.forEach(p => sceneGroup.add(makeSphere(rC, MAT.ghost, p)));
+    S.faces.forEach(p => sceneGroup.add(makeSphere(rF, MAT.ghostRed, p)));
+    S.bodies.forEach(p => sceneGroup.add(makeSphere(rF, MAT.ghost, p)));
+
+    // central atom (green)
+    sceneGroup.add(makeSphere(rC * 1.1, MAT.cn, center));
+
+    // neighbours — compute from real FCC/BCC neighbour logic
+    const neighbours = computeNeighbours(structKey, center);
+    neighbours.forEach(n => {
+      sceneGroup.add(makeSphere(rC, MAT.face, n));
+      if (opts.bonds) sceneGroup.add(makeBond(center, n, 0.025));
+    });
+
+    if (opts.frame) sceneGroup.add(makeCellFrame(a));
+    sceneGroup.position.copy(offset);
+    return;
+  }
+
+  if (mode === 'void') {
+    // ghost atoms + show voids
+    S.corners.forEach(p => sceneGroup.add(makeSphere(rC, MAT.ghost, p)));
+    S.faces.forEach(p => sceneGroup.add(makeSphere(rF, MAT.ghostRed, p)));
+    S.bodies.forEach(p => sceneGroup.add(makeSphere(rF, MAT.ghost, p)));
+    const rOct = structKey === 'fcc' ? 0.414 * rC : 0.155 * rC;
+    const rTet = structKey === 'fcc' ? 0.225 * rC : 0.291 * rC;
+    S.octVoids.forEach(p => sceneGroup.add(makeSphere(rOct * 1.4, MAT.octVoid, p)));
+    S.tetVoids.forEach(p => sceneGroup.add(makeSphere(rTet * 1.4, MAT.tetVoid, p)));
+    if (opts.frame) sceneGroup.add(makeCellFrame(a));
+    sceneGroup.position.copy(offset);
+    return;
+  }
+
+  // unit cell (default)
+  S.corners.forEach(p => sceneGroup.add(makeSphere(rC, MAT.corner, p)));
+  S.faces.forEach(p => sceneGroup.add(makeSphere(rF, MAT.face, p)));
+  S.bodies.forEach(p => sceneGroup.add(makeSphere(rF, MAT.body, p)));
+
+  if (opts.bonds) {
+    // bonds: corners to face centres
+    if (structKey === 'fcc') {
+      const bondsToMake = [
+        [[0,0,0],[a/2,a/2,0]], [[a,0,0],[a/2,a/2,0]], [[0,a,0],[a/2,a/2,0]], [[a,a,0],[a/2,a/2,0]],
+        [[0,0,0],[a/2,0,a/2]], [[a,0,0],[a/2,0,a/2]], [[0,0,a],[a/2,0,a/2]], [[a,0,a],[a/2,0,a/2]],
+        [[0,0,0],[0,a/2,a/2]], [[0,a,0],[0,a/2,a/2]], [[0,0,a],[0,a/2,a/2]], [[0,a,a],[0,a/2,a/2]],
+      ];
+      bondsToMake.forEach(([p1,p2]) => sceneGroup.add(makeBond(p1, p2)));
+    } else if (structKey === 'bcc') {
+      S.corners.forEach(p => sceneGroup.add(makeBond(p, S.bodies[0])));
+    } else if (structKey === 'sc') {
+      const edges = [
+        [[0,0,0],[a,0,0]],[[0,a,0],[a,a,0]],[[0,0,a],[a,0,a]],[[0,a,a],[a,a,a]],
+        [[0,0,0],[0,a,0]],[[a,0,0],[a,a,0]],[[0,0,a],[0,a,a]],[[a,0,a],[a,a,a]],
+        [[0,0,0],[0,0,a]],[[a,0,0],[a,0,a]],[[0,a,0],[0,a,a]],[[a,a,0],[a,a,a]],
+      ];
+      edges.forEach(([p1,p2]) => sceneGroup.add(makeBond(p1, p2, 0.03)));
+    }
+  }
+
+  if (opts.frame) sceneGroup.add(makeCellFrame(a));
+  sceneGroup.position.copy(offset);
+}
+
+function computeNeighbours(structKey, center) {
+  // FCC: 12 neighbours at a/√2 distance
+  if (structKey === 'fcc') {
+    const allPositions = [];
+    for (let ix=-1; ix<=2; ix++) for (let iy=-1; iy<=2; iy++) for (let iz=-1; iz<=2; iz++) {
+      const S = STRUCTURES.fcc;
+      [...S.corners, ...S.faces].forEach(p => {
+        allPositions.push([p[0]+ix*a, p[1]+iy*a, p[2]+iz*a]);
+      });
+    }
+    const c = new THREE.Vector3(...center);
+    const d0 = a / Math.sqrt(2);
+    return allPositions.filter(p => {
+      const dist = new THREE.Vector3(...p).distanceTo(c);
+      return dist > 0.01 && Math.abs(dist - d0) < 0.01;
+    }).slice(0, 12);
+  }
+  if (structKey === 'bcc') {
+    return STRUCTURES.bcc.corners;
+  }
+  if (structKey === 'sc') {
+    return [[a,0,0],[-a,0,0],[0,a,0],[0,-a,0],[0,0,a],[0,0,-a]].map(([x,y,z]) => [x+center[0], y+center[1], z+center[2]]);
+  }
+  return [];
+}
+
+// ── UI handlers ──
+function setStructure(key) {
+  currentStructure = key;
+  document.querySelectorAll('.hbtn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  const S = STRUCTURES[key];
+  document.getElementById('s-atoms').textContent = S.atoms;
+  document.getElementById('s-atoms').nextElementSibling.textContent = S.atomSub;
+  document.getElementById('s-cn').textContent = S.cn;
+  document.getElementById('s-pe').textContent = S.pe;
+  document.getElementById('s-void').textContent = S.voidPct;
+  document.getElementById('formula').innerHTML = S.formula;
+  document.getElementById('overlay').innerHTML = `<b>${S.name}</b><br>CN = ${S.cn} · Packing = ${S.pe}`;
+  buildScene(key, currentMode);
+}
+
+function setMode(mode) {
+  currentMode = mode;
+  ['unit','extended','cn','void'].forEach(m => {
+    document.getElementById('m-'+m).classList.toggle('active', m === mode);
+  });
+  buildScene(currentStructure, mode);
+}
+
+function toggleOpt(key) {
+  opts[key] = !opts[key];
+  const el = document.getElementById('t-'+key);
+  el.classList.toggle('on', opts[key]);
+  if (key === 'rotate') autoRotate = opts[key];
+  else buildScene(currentStructure, currentMode);
+}
+
+// ── resize ──
+function resize() {
+  const { clientWidth: w, clientHeight: h } = canvas.parentElement;
+  renderer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+}
+new ResizeObserver(resize).observe(canvas.parentElement);
+resize();
+
+// ── render loop ──
+let t = 0;
+function animate() {
+  requestAnimationFrame(animate);
+  t += 0.005;
+  if (autoRotate) spherical.theta += 0.004;
+  updateCamera();
+  renderer.render(scene, camera);
+}
+
+buildScene('fcc', 'unit');
+animate();
+</script>
+</body>
+</html>
