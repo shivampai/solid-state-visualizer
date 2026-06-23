@@ -266,6 +266,32 @@ const Plot3D = {
             this.scene,
             this.camera
         );
+    },
+    clearAll() {
+
+        const keep = [];
+
+        this.scene.children.forEach(obj => {
+
+            if (
+                obj.type === "GridHelper" ||
+                obj.type === "AxesHelper" ||
+                obj.type === "AmbientLight" ||
+                obj.type === "DirectionalLight"
+            ) {
+                keep.push(obj);
+            }
+
+        });
+
+        while (this.scene.children.length > 0) {
+            this.scene.remove(this.scene.children[0]);
+        }
+
+        keep.forEach(obj => {
+            this.scene.add(obj);
+        });
+
     }
 };
 window.addEventListener("DOMContentLoaded", () => {
