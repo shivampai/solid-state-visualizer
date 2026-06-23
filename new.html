@@ -10,9 +10,39 @@
 <script src="https://cdn.jsdelivr.net/npm/three@0.128/examples/js/controls/OrbitControls.js"></script>
 <script src="3drenderer.js"></script>
 <script src="main.js"></script>
+
 <body onload="">
     <canvas id="canvas"></canvas>
-<button onclick="drawPlane1()">Sphere</button>
+    <div class="taskbar">
+        <select id="" onchange="drawPlane(this.value)">
+            <option value="AB">AB Plane</option>
+            <option value="AA">AA Plane</option>
+        </select>
+    </div>
 </body>
+<style>
+    #canvas {
+        position: absolute;
+        z-index: 1px;
+        padding: 0px;
+        margin: 0px;
+        top: 0px;
+    }
+
+    .taskbar {
+        display: flex;
+        position: absolute;
+        z-index: 5px;
+        background-color: white;
+        width: 50vw;
+        height: 50px;
+        bottom: 50px;
+        left: 25vw;
+        border-radius: 25px;
+        box-shadow: 5px 5px 2.5px #aaaaaa;
+        justify-content: space-around;
+        align-items: center;
+    }
+</style>
 
 </html>
