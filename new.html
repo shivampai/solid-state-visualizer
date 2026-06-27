@@ -11,13 +11,15 @@
 <script src="3drenderer.js"></script>
 <script src="main.js"></script>
 
-<body onload="">
+<body onload="drawPlane('AA')">
     <canvas id="canvas"></canvas>
     <div class="taskbar">
         <select id="" onchange="drawPlane(this.value)">
             <option value="AB">AB Plane</option>
             <option value="AA">AA Plane</option>
         </select>
+        <button onclick="drawCubes()">Cube</button>
+        <button onclick="editData()">Edit Grid</button>
     </div>
 </body>
 <style>
