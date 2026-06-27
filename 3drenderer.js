@@ -131,33 +131,53 @@ const Plot3D = {
         x,
         y,
         z,
-        w = 1,
-        h = 1,
-        d = 1,
-        color = 0x00ff00
+        width = 1,
+        height = 1,
+        depth = 1,
+        color = 0x66ccff,
+        opacity = 1,
+        segments = 1
     ) {
 
-        const mesh =
-            new THREE.Mesh(
-                new THREE.BoxGeometry(
-                    w,
-                    h,
-                    d
-                ),
-                new THREE.MeshStandardMaterial({
-                    color
-                })
-            );
+        const group = new THREE.Group();
 
-        mesh.position.set(
-            x,
-            y,
-            z
+        // Translucent faces
+        const geometry = new THREE.BoxGeometry(
+            width,
+            height,
+            depth,
+            segments,
+            segments,
+            segments
         );
 
-        this.scene.add(mesh);
+        const material = new THREE.MeshBasicMaterial({
+            color,
+            transparent: true,
+            opacity,
+            side: THREE.DoubleSide
+        });
 
-        return mesh;
+        const cube = new THREE.Mesh(
+            geometry,
+            material
+        );
+
+        // Black outline
+        const edges = new THREE.LineSegments(
+            new THREE.EdgesGeometry(geometry),
+            new THREE.LineBasicMaterial({
+                color: 0x000000
+            })
+        );
+
+        group.add(cube);
+        group.add(edges);
+
+        group.position.set(x, y, z);
+
+        this.scene.add(group);
+        return group;
     },
 
     line(
